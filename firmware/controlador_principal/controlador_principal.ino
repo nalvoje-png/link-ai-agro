@@ -185,6 +185,37 @@ void gravarEstadoSistema(bool bombaLigada) {
   http.end();
 }
 
+// ---------- Busca comandos manuais (tabela reles, usada pelo botao Ligar/Desligar agora) ----------
+bool buscarRelesManuais(bool manualLigado[8]) {
+  for (int i = 0; i < 8; i++) manualLigado[i] = false;
+
+  HTTPClient http;
+  String url = urlBase() + "reles?select=id,ligado&order=id";
+  http.begin(url);
+  adicionarHeadersPadrao(http);
+  int codigo = http.GET();
+  if (codigo != 200) {
+    Serial.print("Erro ao buscar reles manuais: ");
+    Serial.println(codigo);
+    http.end();
+    return false;
+  }
+  String corpo = http.getString();
+  http.end();
+
+  JsonDocument doc;
+  if (deserializeJson(doc, corpo)) {
+    Serial.println("Erro ao interpretar JSON de reles.");
+    return false;
+  }
+  for (JsonObject item : doc.as<JsonArray>()) {
+    int id = item["id"];
+    bool ligado = item["ligado"];
+    if (id >= 0 && id < 8) manualLigado[id] = ligado;
+  }
+  return true;
+}
+
 // ---------- Motor de agendamento ----------
 void avaliarAgendamento() {
   struct tm agora;
@@ -194,6 +225,9 @@ void avaliarAgendamento() {
   }
   int minutoAtual = agora.tm_hour * 60 + agora.tm_min;
   int diaSemanaAtual = agora.tm_wday; // 0 = domingo
+
+  bool manualLigado[8];
+  buscarRelesManuais(manualLigado);
 
   // 1) Descobre quais setores estao dentro da janela de horario hoje
   bool candidato[8] = { false };
@@ -226,7 +260,16 @@ void avaliarAgendamento() {
     }
   }
 
-  // 3) Aciona os reles fisicos e grava o status de volta
+  // 3) Mescla com comandos manuais: um clique em "Ligar agora" no app vale
+  //    mesmo fora do horario agendado (comando manual OU agendamento).
+  for (int i = 0; i < totalSetores; i++) {
+    SetorFW& s = setores[i];
+    if (s.releIndex >= 0 && s.releIndex < 8 && manualLigado[s.releIndex]) {
+      deveIrrigar[i] = true;
+    }
+  }
+
+  // 4) Aciona os reles fisicos e grava o status de volta
   bool algumAtivo = false;
   uint8_t novoEstadoFisico = 0xFF; // todos desligados por padrao (ativo em LOW)
 
@@ -236,22 +279,23 @@ void avaliarAgendamento() {
       novoEstadoFisico &= ~(1 << s.releIndex); // liga (LOW)
       algumAtivo = true;
       int progresso = minutoAtual - s.horaInicioMin;
-      gravarStatusSetor(s.id, "ativo", progresso);
+      gravarStatusSetor(s.id, "ativo", progresso >= 0 ? progresso : 0);
     } else {
-      String statusFinal = (s.ativo && candidato[i] == false) ? "aguardando" : (s.ativo ? "aguardando" : "desligado");
+      String statusFinal = s.ativo ? "aguardando" : "desligado";
       gravarStatusSetor(s.id, statusFinal.c_str(), -1);
     }
   }
 
-  // Rele 0 = bomba: liga se qualquer setor estiver ativo
-  if (algumAtivo) novoEstadoFisico &= ~(1 << 0);
+  // Rele 0 = bomba: liga se qualquer setor estiver ativo, ou se a bomba foi
+  // acionada manualmente pelo botao de teste direto.
+  if (algumAtivo || manualLigado[0]) novoEstadoFisico &= ~(1 << 0);
   writeRelays(novoEstadoFisico);
   relayState = novoEstadoFisico;
 
-  gravarEstadoSistema(algumAtivo);
+  gravarEstadoSistema(algumAtivo || manualLigado[0]);
 
   Serial.print("Agendador avaliado. Bomba: ");
-  Serial.println(algumAtivo ? "LIGADA" : "desligada");
+  Serial.println((algumAtivo || manualLigado[0]) ? "LIGADA" : "desligada");
 }
 
 // ---------- Leitura do sensor NPK e gravacao no Supabase ----------
