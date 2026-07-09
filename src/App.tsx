@@ -3,6 +3,7 @@ import { Sprout } from 'lucide-react';
 import { PainelBomba } from './components/PainelBomba';
 import { SetorCard } from './components/SetorCard';
 import { PerfilSolo } from './components/PerfilSolo';
+import { TesteReles } from './components/TesteReles';
 import type { EstadoSistema, LeituraSensor, Setor } from './types';
 
 const SETORES_INICIAIS: Setor[] = [
@@ -73,6 +74,8 @@ function App() {
         </header>
 
         <PainelBomba estado={estado} setores={setores} onToggleModo={alternarModo} />
+
+        <TesteReles />
 
         <section>
           <h2 className="text-xl font-semibold tracking-tight mb-3">Setores</h2>
