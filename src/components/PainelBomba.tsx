@@ -1,5 +1,5 @@
 import { Droplets, Wifi } from 'lucide-react';
-import type { EstadoSistema, Setor } from '../types';
+import type { EstadoSistema, JanelaHorario, Setor } from '../types';
 
 interface Props {
   estado: EstadoSistema;
@@ -7,11 +7,22 @@ interface Props {
   onToggleModo: () => void;
 }
 
+interface ProximaIrrigacao {
+  setor: Setor;
+  proximaJanela: JanelaHorario;
+}
+
 export function PainelBomba({ estado, setores, onToggleModo }: Props) {
   const setoresAtivos = setores.filter((s) => s.status === 'ativo');
   const proximo = setores
-    .filter((s) => s.status === 'aguardando' && s.ativo && s.janelas.length > 0)
-    .map((s) => ({ setor: s, proximaJanela: [...s.janelas].sort((a, b) => a.inicio.localeCompare(b.inicio))[0] }))
+    .filter((s) => s.status === 'aguardando' && s.ativo)
+    .map((s): ProximaIrrigacao | null => {
+      const janelasValidas = s.janelas.filter((j) => j.inicio && j.fim);
+      if (janelasValidas.length === 0) return null;
+      const proximaJanela = [...janelasValidas].sort((a, b) => a.inicio.localeCompare(b.inicio))[0];
+      return { setor: s, proximaJanela };
+    })
+    .filter((x): x is ProximaIrrigacao => x !== null)
     .sort((a, b) => a.proximaJanela.inicio.localeCompare(b.proximaJanela.inicio))[0];
 
   return (
