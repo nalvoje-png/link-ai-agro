@@ -33,7 +33,7 @@ const long GMT_OFFSET_SEC = -3 * 3600; // Brasilia (UTC-3, sem horario de verao 
 const int DAYLIGHT_OFFSET_SEC = 0;
 const char* NTP_SERVER = "pool.ntp.org";
 
-const unsigned long INTERVALO_AGENDADOR_MS = 20000;   // avalia o agendamento a cada 20s
+const unsigned long INTERVALO_AGENDADOR_MS = 5000;    // avalia o agendamento a cada 5s
 const unsigned long INTERVALO_SENSOR_MS = 10UL * 60UL * 1000UL; // le o sensor a cada 10 min
 
 // ---------- I2C / Reles ----------
@@ -55,11 +55,18 @@ void writeRelays(uint8_t state) {
 ModbusMaster sensorNode;
 
 // ---------- Modelo local de um setor ----------
+#define MAX_JANELAS 6
+
+struct Janela {
+  int inicioMin;
+  int fimMin;
+};
+
 struct SetorFW {
   int id;
   int releIndex;
-  int horaInicioMin; // minutos desde 00:00
-  int duracaoMinutos;
+  Janela janelas[MAX_JANELAS];
+  int totalJanelas;
   uint8_t diasSemanaMask; // bit 0 = domingo ... bit 6 = sabado
   bool ativo;
 };
@@ -114,9 +121,15 @@ bool buscarSetoresEEstado() {
     SetorFW& s = setores[totalSetores];
     s.id = item["id"];
     s.releIndex = item["rele_index"];
-    s.horaInicioMin = minutosDoHorario(item["hora_inicio"].as<const char*>());
-    s.duracaoMinutos = item["duracao_minutos"];
     s.ativo = item["ativo"];
+
+    s.totalJanelas = 0;
+    for (JsonObject janela : item["janelas"].as<JsonArray>()) {
+      if (s.totalJanelas >= MAX_JANELAS) break;
+      s.janelas[s.totalJanelas].inicioMin = minutosDoHorario(janela["inicio"].as<const char*>());
+      s.janelas[s.totalJanelas].fimMin = minutosDoHorario(janela["fim"].as<const char*>());
+      s.totalJanelas++;
+    }
 
     s.diasSemanaMask = 0;
     for (JsonVariant dia : item["dias_semana"].as<JsonArray>()) {
@@ -229,15 +242,22 @@ void avaliarAgendamento() {
   bool manualLigado[8];
   buscarRelesManuais(manualLigado);
 
-  // 1) Descobre quais setores estao dentro da janela de horario hoje
+  // 1) Descobre quais setores estao dentro de alguma janela de horario hoje
   bool candidato[8] = { false };
+  int janelaAtivaInicio[8]; // guarda o inicio da janela que bateu, para calcular progresso
   for (int i = 0; i < totalSetores; i++) {
     SetorFW& s = setores[i];
     bool diaOk = s.diasSemanaMask & (1 << diaSemanaAtual);
-    bool horarioOk = s.ativo && diaOk &&
-      minutoAtual >= s.horaInicioMin &&
-      minutoAtual < (s.horaInicioMin + s.duracaoMinutos);
-    candidato[i] = horarioOk;
+    janelaAtivaInicio[i] = -1;
+    if (!s.ativo || !diaOk) continue;
+
+    for (int j = 0; j < s.totalJanelas; j++) {
+      if (minutoAtual >= s.janelas[j].inicioMin && minutoAtual < s.janelas[j].fimMin) {
+        candidato[i] = true;
+        janelaAtivaInicio[i] = s.janelas[j].inicioMin;
+        break;
+      }
+    }
   }
 
   // 2) Aplica a regra do modo de operacao
@@ -278,7 +298,7 @@ void avaliarAgendamento() {
     if (deveIrrigar[i]) {
       novoEstadoFisico &= ~(1 << s.releIndex); // liga (LOW)
       algumAtivo = true;
-      int progresso = minutoAtual - s.horaInicioMin;
+      int progresso = janelaAtivaInicio[i] >= 0 ? (minutoAtual - janelaAtivaInicio[i]) : 0;
       gravarStatusSetor(s.id, "ativo", progresso >= 0 ? progresso : 0);
     } else {
       String statusFinal = s.ativo ? "aguardando" : "desligado";

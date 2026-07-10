@@ -10,8 +10,9 @@ interface Props {
 export function PainelBomba({ estado, setores, onToggleModo }: Props) {
   const setoresAtivos = setores.filter((s) => s.status === 'ativo');
   const proximo = setores
-    .filter((s) => s.status === 'aguardando' && s.ativo)
-    .sort((a, b) => a.horaInicio.localeCompare(b.horaInicio))[0];
+    .filter((s) => s.status === 'aguardando' && s.ativo && s.janelas.length > 0)
+    .map((s) => ({ setor: s, proximaJanela: [...s.janelas].sort((a, b) => a.inicio.localeCompare(b.inicio))[0] }))
+    .sort((a, b) => a.proximaJanela.inicio.localeCompare(b.proximaJanela.inicio))[0];
 
   return (
     <section className="rounded-2xl border border-grafite-700 bg-grafite-800 p-6 md:p-8 shadow-[0_8px_30px_rgba(0,0,0,0.35)]">
@@ -40,7 +41,7 @@ export function PainelBomba({ estado, setores, onToggleModo }: Props) {
               {setoresAtivos.length > 0
                 ? `Irrigando: ${setoresAtivos.map((s) => s.nome).join(', ')}`
                 : proximo
-                ? `Próximo: ${proximo.nome} às ${proximo.horaInicio}`
+                ? `Próximo: ${proximo.setor.nome} às ${proximo.proximaJanela.inicio}`
                 : 'Nenhum setor programado para hoje'}
             </p>
           </div>

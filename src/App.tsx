@@ -3,21 +3,31 @@ import { Sprout } from 'lucide-react';
 import { PainelBomba } from './components/PainelBomba';
 import { SetorCard } from './components/SetorCard';
 import { PerfilSolo } from './components/PerfilSolo';
-import { TesteReles } from './components/TesteReles';
 import { supabase } from './lib/supabaseClient';
 import { listarSetores, salvarConfigSetor, definirStatusSetor } from './lib/setores';
 import { obterEstado, definirModoOperacao } from './lib/estadoSistema';
 import { obterUltimaLeitura } from './lib/leituras';
-import { alternarRele } from './lib/reles';
+import { alternarRele, listarReles, type Rele } from './lib/reles';
 import type { EstadoSistema, LeituraSensor, Setor, StatusSetor } from './types';
 
 const SETORES_DEMO: Setor[] = [
-  { id: 1, nome: 'Setor 1', releIndex: 1, horaInicio: '06:00', duracaoMinutos: 20, diasSemana: [1, 3, 5], ativo: true, status: 'aguardando' },
-  { id: 2, nome: 'Setor 2', releIndex: 2, horaInicio: '06:25', duracaoMinutos: 20, diasSemana: [1, 3, 5], ativo: true, status: 'aguardando' },
-  { id: 3, nome: 'Setor 3', releIndex: 3, horaInicio: '06:50', duracaoMinutos: 25, diasSemana: [1, 3, 5], ativo: true, status: 'ativo', progressoMinutos: 8 },
-  { id: 4, nome: 'Setor 4', releIndex: 4, horaInicio: '07:20', duracaoMinutos: 20, diasSemana: [2, 4, 6], ativo: true, status: 'aguardando' },
-  { id: 5, nome: 'Setor 5', releIndex: 5, horaInicio: '07:45', duracaoMinutos: 20, diasSemana: [2, 4, 6], ativo: false, status: 'desligado' },
-  { id: 6, nome: 'Setor 6', releIndex: 6, horaInicio: '08:10', duracaoMinutos: 20, diasSemana: [2, 4, 6], ativo: true, status: 'aguardando' },
+  { id: 1, nome: 'Setor 1', releIndex: 1, janelas: [{ id: '1-0', inicio: '06:00', fim: '06:20' }], diasSemana: [1, 3, 5], ativo: true, status: 'aguardando' },
+  { id: 2, nome: 'Setor 2', releIndex: 2, janelas: [{ id: '2-0', inicio: '06:25', fim: '06:45' }], diasSemana: [1, 3, 5], ativo: true, status: 'aguardando' },
+  { id: 3, nome: 'Setor 3', releIndex: 3, janelas: [{ id: '3-0', inicio: '06:50', fim: '07:15' }], diasSemana: [1, 3, 5], ativo: true, status: 'ativo', progressoMinutos: 8 },
+  { id: 4, nome: 'Setor 4', releIndex: 4, janelas: [{ id: '4-0', inicio: '07:20', fim: '07:40' }], diasSemana: [2, 4, 6], ativo: true, status: 'aguardando' },
+  { id: 5, nome: 'Setor 5', releIndex: 5, janelas: [{ id: '5-0', inicio: '07:45', fim: '08:05' }], diasSemana: [2, 4, 6], ativo: false, status: 'desligado' },
+  {
+    id: 6,
+    nome: 'Setor 6',
+    releIndex: 6,
+    janelas: [
+      { id: '6-0', inicio: '06:00', fim: '06:30' },
+      { id: '6-1', inicio: '18:00', fim: '18:30' },
+    ],
+    diasSemana: [2, 4, 6],
+    ativo: true,
+    status: 'aguardando',
+  },
 ];
 
 const LEITURA_DEMO: LeituraSensor = {
@@ -40,6 +50,19 @@ const ESTADO_DEMO: EstadoSistema = {
 };
 
 const INTERVALO_POLL_MS = 5000;
+const TIMEOUT_CONFIRMACAO_MS = 15000; // acima do ciclo do firmware (5s), com folga
+
+function calcularFalhaComunicacao(setor: Setor, relesPorIndex: Map<number, Rele>, estado: EstadoSistema): boolean {
+  const rele = relesPorIndex.get(setor.releIndex);
+  if (!rele || !rele.comando_em) return false;
+
+  const comandoEm = new Date(rele.comando_em).getTime();
+  const decorrido = Date.now() - comandoEm;
+  if (decorrido < TIMEOUT_CONFIRMACAO_MS) return false; // ainda dentro do prazo normal
+
+  const ultimaSinc = estado.ultimaSincronizacao ? new Date(estado.ultimaSincronizacao).getTime() : 0;
+  return ultimaSinc < comandoEm; // a placa nao sincronizou depois desse comando
+}
 
 function App() {
   const demo = !supabase;
@@ -47,23 +70,25 @@ function App() {
   const [setores, setSetores] = useState<Setor[]>(SETORES_DEMO);
   const [leitura, setLeitura] = useState<LeituraSensor | null>(LEITURA_DEMO);
   const [estado, setEstado] = useState<EstadoSistema>(ESTADO_DEMO);
+  const [reles, setReles] = useState<Rele[]>([]);
 
-  // Carrega dados reais do Supabase e mantem sincronizado por polling.
   useEffect(() => {
     if (demo) return;
 
     let ativo = true;
 
     async function sincronizar() {
-      const [novosSetores, novoEstado, novaLeitura] = await Promise.all([
+      const [novosSetores, novoEstado, novaLeitura, novosReles] = await Promise.all([
         listarSetores(),
         obterEstado(),
         obterUltimaLeitura(),
+        listarReles(),
       ]);
       if (!ativo) return;
       if (novosSetores.length > 0) setSetores(novosSetores);
       if (novoEstado) setEstado(novoEstado);
       if (novaLeitura) setLeitura(novaLeitura);
+      if (novosReles.length > 0) setReles(novosReles);
     }
 
     sincronizar();
@@ -74,20 +99,19 @@ function App() {
     };
   }, [demo]);
 
-  // Edicao de horario/duracao/dias/ativo de um setor (persiste no Supabase).
+  const relesPorIndex = new Map(reles.map((r) => [r.id, r]));
+
   const atualizarSetor = (novo: Setor) => {
     setSetores((prev) => prev.map((s) => (s.id === novo.id ? novo : s)));
     if (!demo) salvarConfigSetor(novo);
   };
 
-  // Botao manual "Ligar agora" / "Desligar agora" — muda status e aciona os reles fisicos.
   const alternarManual = async (id: number) => {
     const novo: Setor[] = setores.map((s) => {
       if (s.id === id) {
         const novoStatus: StatusSetor = s.status === 'ativo' ? 'desligado' : 'ativo';
         return { ...s, status: novoStatus, progressoMinutos: novoStatus === 'ativo' ? 0 : undefined };
       }
-      // Em modo sequencial, ligar um setor desliga o que estava ativo antes.
       if (estado.modoOperacao === 'sequencial' && s.status === 'ativo') {
         return { ...s, status: 'aguardando' as StatusSetor };
       }
@@ -95,14 +119,13 @@ function App() {
     });
 
     setSetores(novo);
-
     if (demo) return;
 
     for (const s of novo) {
       await definirStatusSetor(s.id, s.status, s.progressoMinutos);
     }
     const algumAtivo = novo.some((s) => s.status === 'ativo');
-    await alternarRele(0, algumAtivo); // rele 0 = bomba
+    await alternarRele(0, algumAtivo);
     for (const s of novo) {
       await alternarRele(s.releIndex, s.status === 'ativo');
     }
@@ -129,8 +152,6 @@ function App() {
 
         <PainelBomba estado={estado} setores={setores} onToggleModo={alternarModo} />
 
-        <TesteReles />
-
         <section>
           <h2 className="text-xl font-semibold tracking-tight mb-3">Setores</h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -140,6 +161,7 @@ function App() {
                 setor={setor}
                 onChange={atualizarSetor}
                 onToggleManual={alternarManual}
+                falhaComunicacao={calcularFalhaComunicacao(setor, relesPorIndex, estado)}
               />
             ))}
           </div>
@@ -148,7 +170,7 @@ function App() {
         <PerfilSolo leitura={leitura} />
 
         <footer className="text-center text-xs text-grafite-600 pt-4">
-          NVX AI LABS — LINK-AI AGRO · DADOS DE DEMONSTRAÇÃO · v1.0.4
+          NVX AI LABS — LINK-AI AGRO · DADOS DE DEMONSTRAÇÃO · v1.1.0
         </footer>
       </div>
     </div>

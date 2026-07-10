@@ -5,6 +5,7 @@ export interface Rele {
   nome: string;
   ligado: boolean;
   atualizado_em: string;
+  comando_em: string | null;
 }
 
 export async function listarReles(): Promise<Rele[]> {
@@ -19,9 +20,10 @@ export async function listarReles(): Promise<Rele[]> {
 
 export async function alternarRele(id: number, ligado: boolean): Promise<boolean> {
   if (!supabase) return false;
+  const agora = new Date().toISOString();
   const { error } = await supabase
     .from('reles')
-    .update({ ligado, atualizado_em: new Date().toISOString() })
+    .update({ ligado, atualizado_em: agora, comando_em: agora })
     .eq('id', id);
   if (error) {
     console.error('[reles] erro ao atualizar:', error.message);

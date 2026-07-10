@@ -1,14 +1,18 @@
 import { supabase } from './supabaseClient';
-import type { Setor, StatusSetor } from '../types';
+import type { JanelaHorario, Setor, StatusSetor } from '../types';
 
 // A tabela usa snake_case; o app usa camelCase. Estas funcoes fazem a conversao.
+
+interface JanelaRow {
+  inicio: string;
+  fim: string;
+}
 
 interface SetorRow {
   id: number;
   nome: string;
   rele_index: number;
-  hora_inicio: string;
-  duracao_minutos: number;
+  janelas: JanelaRow[];
   dias_semana: number[];
   ativo: boolean;
   status: StatusSetor;
@@ -20,13 +24,20 @@ function fromRow(row: SetorRow): Setor {
     id: row.id,
     nome: row.nome,
     releIndex: row.rele_index,
-    horaInicio: row.hora_inicio,
-    duracaoMinutos: row.duracao_minutos,
+    janelas: (row.janelas ?? []).map((j, i) => ({
+      id: `${row.id}-${i}`,
+      inicio: j.inicio,
+      fim: j.fim,
+    })),
     diasSemana: row.dias_semana ?? [],
     ativo: row.ativo,
     status: row.status,
     progressoMinutos: row.progresso_minutos ?? undefined,
   };
+}
+
+function janelasParaRow(janelas: JanelaHorario[]): JanelaRow[] {
+  return janelas.map((j) => ({ inicio: j.inicio, fim: j.fim }));
 }
 
 export async function listarSetores(): Promise<Setor[]> {
@@ -39,14 +50,13 @@ export async function listarSetores(): Promise<Setor[]> {
   return (data as SetorRow[]).map(fromRow);
 }
 
-// Atualiza apenas os campos de configuracao (horario/duracao/dias/ativo).
+// Atualiza apenas os campos de configuracao (janelas/dias/ativo).
 export async function salvarConfigSetor(setor: Setor): Promise<boolean> {
   if (!supabase) return false;
   const { error } = await supabase
     .from('setores')
     .update({
-      hora_inicio: setor.horaInicio,
-      duracao_minutos: setor.duracaoMinutos,
+      janelas: janelasParaRow(setor.janelas),
       dias_semana: setor.diasSemana,
       ativo: setor.ativo,
     })
