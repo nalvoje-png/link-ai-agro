@@ -24,13 +24,13 @@ body {
   font-variant-numeric: tabular-nums;
 }
 
-/* Fundo "hora dourada" sobre a plantação — gradiente, sem depender de foto externa.
+/* Fundo "entardecer azulado" sobre a plantação — gradiente, sem depender de foto externa.
    Pode ser trocado por uma foto real da fazenda: basta colocar o arquivo em
    public/fundo-fazenda.jpg e trocar esta regra por background-image. */
 .fundo-fazenda {
   background:
-    radial-gradient(ellipse 60% 40% at 78% 12%, rgba(255, 205, 130, 0.55), transparent 60%),
-    linear-gradient(180deg, #140f0a 0%, #3d2716 20%, #7a4a24 38%, #c98a44 52%, #6b7a3f 66%, #223423 82%, #101a12 100%);
+    radial-gradient(ellipse 55% 35% at 50% 6%, rgba(120, 160, 190, 0.25), transparent 60%),
+    linear-gradient(180deg, #0a1020 0%, #0f1c2e 22%, #16293b 42%, #1c3b3a 58%, #16301f 76%, #0a1710 100%);
   background-attachment: fixed;
   position: relative;
 }
@@ -42,25 +42,25 @@ body {
   pointer-events: none;
   background: repeating-linear-gradient(
     115deg,
-    rgba(20, 40, 20, 0.18) 0px,
-    rgba(20, 40, 20, 0.18) 2px,
+    rgba(10, 30, 25, 0.22) 0px,
+    rgba(10, 30, 25, 0.22) 2px,
     transparent 2px,
     transparent 34px
   );
   opacity: 0.5;
 }
 
-/* Vidro fosco (glassmorphism) reutilizavel */
+/* Vidro fosco (glassmorphism) reutilizavel — tom azul-marinho, nao branco */
 .vidro {
-  background: rgba(255, 255, 255, 0.06);
+  background: rgba(13, 22, 38, 0.55);
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
-  border: 1px solid rgba(34, 211, 166, 0.22);
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.05);
 }
 
 .vidro-sutil {
-  background: rgba(0, 0, 0, 0.18);
+  background: rgba(6, 12, 24, 0.4);
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
   border: 1px solid rgba(255, 255, 255, 0.08);
@@ -80,6 +80,14 @@ body {
 }
 .animar-relogio {
   animation: tique-relogio 1s ease-in-out infinite;
+}
+
+@keyframes anel-badge {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(34, 211, 166, 0.35); }
+  50% { box-shadow: 0 0 0 6px rgba(34, 211, 166, 0); }
+}
+.animar-anel {
+  animation: anel-badge 2.4s ease-in-out infinite;
 }
 
 @keyframes onda-ativa {

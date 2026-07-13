@@ -189,7 +189,7 @@ function App() {
         <PerfilSolo leitura={leitura} />
 
         <footer className="text-center text-xs text-off-white/40 pt-4">
-          NVX AI LABS — LINKAI AGRO · DADOS DE DEMONSTRAÇÃO · v1.3.0
+          NVX AI LABS — LINKAI AGRO · DADOS DE DEMONSTRAÇÃO · v1.3.1
         </footer>
       </div>
     </div>

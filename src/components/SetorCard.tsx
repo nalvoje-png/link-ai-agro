@@ -1,8 +1,10 @@
-import { Power, Plus, X, Droplet, Clock, MoonStar, WifiOff } from 'lucide-react';
+import { Power, Plus, X, Droplet, Clock, Lock, WifiOff } from 'lucide-react';
 import type { JanelaHorario, Setor } from '../types';
 
 const DIAS = ['D', 'S', 'T', 'Q', 'Q', 'S', 'S'];
 const HOJE = new Date().getDay();
+// Cor decorativa fixa por dia da semana (puramente visual, nao indica selecao)
+const COR_DECORATIVA_DIA = ['#22D3A6', '#38BDF8', '#38BDF8', '#22D3A6', '#F5A524', '#F5A524', '#F04438'];
 
 function gerarIdJanela() {
   return Math.random().toString(36).slice(2, 9);
@@ -33,7 +35,7 @@ export function SetorCard({ setor, onChange, onToggleManual, falhaComunicacao }:
     ? { cor: 'critico', Icone: WifiOff, label: 'Erro' }
     : setor.status === 'aguardando'
     ? { cor: 'verde', Icone: Clock, label: 'Agendado' }
-    : { cor: 'grafite', Icone: MoonStar, label: 'Desativado' };
+    : { cor: 'grafite', Icone: Lock, label: 'Desativado' };
 
   const corClasses: Record<string, { faixa: string; badge: string; borda: string; barra: string }> = {
     azul: { faixa: 'bg-azul-400', badge: 'bg-azul-500/20 text-azul-300', borda: 'border-azul-400/50', barra: 'bg-azul-400' },
@@ -78,7 +80,11 @@ export function SetorCard({ setor, onChange, onToggleManual, falhaComunicacao }:
       <div className="p-5 flex flex-col gap-4">
         <div className="flex items-center justify-between">
           <h3 className="text-lg font-semibold tracking-tight">{setor.nome}</h3>
-          <span className={`flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide px-2.5 py-1 rounded-full ${cc.badge}`}>
+          <span
+            className={`flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide px-2.5 py-1 rounded-full ${cc.badge} ${
+              config.cor === 'verde' ? 'animar-anel' : ''
+            }`}
+          >
             <Icone className="h-3 w-3" />
             {config.label}
           </span>
@@ -89,7 +95,9 @@ export function SetorCard({ setor, onChange, onToggleManual, falhaComunicacao }:
           onClick={() => onChange({ ...setor, ativo: !setor.ativo })}
           className="vidro-sutil flex items-center justify-between rounded-lg px-3 py-2"
         >
-          <span className="text-xs font-medium text-off-white/60">Agendamento automático</span>
+          <span className={`text-xs font-medium ${setor.ativo ? 'text-verde-400' : 'text-off-white/50'}`}>
+            {setor.ativo ? 'Agendado' : 'Desativado'}
+          </span>
           <span
             className={`relative flex h-5 w-9 items-center rounded-full p-0.5 backdrop-blur-sm transition-colors ${
               setor.ativo ? 'bg-verde-500/90 shadow-[0_0_8px_rgba(34,211,166,0.6)]' : 'bg-white/15'
@@ -162,16 +170,24 @@ export function SetorCard({ setor, onChange, onToggleManual, falhaComunicacao }:
                 key={i}
                 onClick={() => toggleDia(i)}
                 aria-pressed={programado}
-                className={`relative h-7 w-7 rounded-full text-[11px] font-semibold transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-azul-400 ${
-                  programado
-                    ? 'bg-verde-500/25 text-verde-300 shadow-[0_0_6px_rgba(34,211,166,0.4)]'
-                    : 'bg-white/5 text-off-white/30 border border-white/10'
-                }`}
+                className="flex flex-col items-center gap-1"
               >
-                {label}
-                {i === HOJE && (
-                  <span className="absolute -top-1 -right-1 h-1.5 w-1.5 rounded-full bg-azul-400 shadow-[0_0_6px_rgba(56,189,248,0.8)]" />
-                )}
+                <span
+                  className={`relative h-7 w-7 rounded-full text-[11px] font-semibold transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-azul-400 flex items-center justify-center ${
+                    programado
+                      ? 'bg-verde-500/25 text-verde-300 shadow-[0_0_6px_rgba(34,211,166,0.4)]'
+                      : 'bg-white/5 text-off-white/30 border border-white/10'
+                  }`}
+                >
+                  {label}
+                  {i === HOJE && (
+                    <span className="absolute -top-1 -right-1 h-1.5 w-1.5 rounded-full bg-azul-400 shadow-[0_0_6px_rgba(56,189,248,0.8)]" />
+                  )}
+                </span>
+                <span
+                  className="h-1 w-1 rounded-full"
+                  style={{ backgroundColor: COR_DECORATIVA_DIA[i], opacity: programado ? 1 : 0.35 }}
+                />
               </button>
             );
           })}
