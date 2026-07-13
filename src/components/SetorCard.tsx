@@ -76,6 +76,25 @@ export function SetorCard({ setor, onChange, onToggleManual, falhaComunicacao }:
           </span>
         </div>
 
+        {/* Interruptor mestre: liga/desliga o agendamento inteiro deste setor */}
+        <button
+          onClick={() => onChange({ ...setor, ativo: !setor.ativo })}
+          className="flex items-center justify-between rounded-lg bg-grafite-900 border border-grafite-700 px-3 py-2"
+        >
+          <span className="text-xs font-medium text-grafite-400">Agendamento automático</span>
+          <span
+            className={`relative flex h-5 w-9 items-center rounded-full p-0.5 transition-colors ${
+              setor.ativo ? 'bg-verde-500' : 'bg-grafite-600'
+            }`}
+          >
+            <span
+              className={`h-4 w-4 rounded-full bg-white shadow transition-transform ${
+                setor.ativo ? 'translate-x-4' : 'translate-x-0'
+              }`}
+            />
+          </span>
+        </button>
+
         {/* Janelas de horario */}
         <div className="flex flex-col gap-2">
           {setor.janelas.map((janela) => (
