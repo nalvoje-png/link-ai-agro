@@ -9,7 +9,7 @@ html, body, #root {
 }
 
 body {
-  @apply bg-grafite-950 text-off-white font-sans antialiased;
+  @apply text-off-white font-sans antialiased;
 }
 
 * {
@@ -22,6 +22,72 @@ body {
 
 .tabular {
   font-variant-numeric: tabular-nums;
+}
+
+/* Fundo "hora dourada" sobre a plantação — gradiente, sem depender de foto externa.
+   Pode ser trocado por uma foto real da fazenda: basta colocar o arquivo em
+   public/fundo-fazenda.jpg e trocar esta regra por background-image. */
+.fundo-fazenda {
+  background:
+    radial-gradient(ellipse 60% 40% at 78% 12%, rgba(255, 205, 130, 0.55), transparent 60%),
+    linear-gradient(180deg, #140f0a 0%, #3d2716 20%, #7a4a24 38%, #c98a44 52%, #6b7a3f 66%, #223423 82%, #101a12 100%);
+  background-attachment: fixed;
+  position: relative;
+}
+
+.fundo-fazenda::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  background: repeating-linear-gradient(
+    115deg,
+    rgba(20, 40, 20, 0.18) 0px,
+    rgba(20, 40, 20, 0.18) 2px,
+    transparent 2px,
+    transparent 34px
+  );
+  opacity: 0.5;
+}
+
+/* Vidro fosco (glassmorphism) reutilizavel */
+.vidro {
+  background: rgba(255, 255, 255, 0.06);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(34, 211, 166, 0.22);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.06);
+}
+
+.vidro-sutil {
+  background: rgba(0, 0, 0, 0.18);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+@keyframes pulso-luz {
+  0%, 100% { opacity: 1; filter: drop-shadow(0 0 3px currentColor); }
+  50% { opacity: 0.55; filter: drop-shadow(0 0 10px currentColor); }
+}
+.animar-luz {
+  animation: pulso-luz 2.2s ease-in-out infinite;
+}
+
+@keyframes tique-relogio {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.06); }
+}
+.animar-relogio {
+  animation: tique-relogio 1s ease-in-out infinite;
+}
+
+@keyframes onda-ativa {
+  0% { box-shadow: 0 0 0 0 rgba(56, 189, 248, 0.45); }
+  100% { box-shadow: 0 0 0 14px rgba(56, 189, 248, 0); }
+}
+.animar-onda {
+  animation: onda-ativa 1.8s ease-out infinite;
 }
 
 @media (prefers-reduced-motion: reduce) {

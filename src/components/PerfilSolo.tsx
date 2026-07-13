@@ -28,9 +28,9 @@ const TAG: Record<NivelStatus, { label: string; classe: string }> = {
 export function PerfilSolo({ leitura }: { leitura: LeituraSensor | null }) {
   if (!leitura) {
     return (
-      <section className="rounded-2xl border border-grafite-700 bg-grafite-800 p-6">
+      <section className="vidro rounded-2xl p-6">
         <h2 className="text-xl font-semibold tracking-tight mb-2">Perfil do solo</h2>
-        <p className="text-grafite-400 text-sm">Aguardando primeira leitura do sensor...</p>
+        <p className="text-off-white/50 text-sm">Aguardando primeira leitura do sensor...</p>
       </section>
     );
   }
@@ -46,10 +46,10 @@ export function PerfilSolo({ leitura }: { leitura: LeituraSensor | null }) {
   ];
 
   return (
-    <section className="rounded-2xl border border-grafite-700 bg-grafite-800 p-6">
+    <section className="vidro rounded-2xl p-6">
       <div className="flex items-baseline justify-between mb-2">
         <h2 className="text-xl font-semibold tracking-tight">Perfil do solo</h2>
-        <span className="text-xs text-grafite-500 tabular font-mono">
+        <span className="text-xs text-off-white/40 tabular font-mono">
           {new Date(leitura.timestamp).toLocaleTimeString('pt-BR')}
         </span>
       </div>
@@ -61,17 +61,17 @@ export function PerfilSolo({ leitura }: { leitura: LeituraSensor | null }) {
           return (
             <div
               key={f.label}
-              className="flex items-center justify-between py-3.5 border-b border-grafite-700/70 last:border-b-0"
+              className="flex items-center justify-between py-3.5 border-b border-white/10 last:border-b-0"
             >
               <div className="flex items-center gap-2.5 min-w-0">
-                <span className="text-sm text-grafite-400 truncate">{f.label}</span>
+                <span className="text-sm text-off-white/60 truncate">{f.label}</span>
                 <span className={`shrink-0 text-[10px] font-semibold uppercase tracking-wide px-2 py-0.5 rounded-full ${tag.classe}`}>
                   {tag.label}
                 </span>
               </div>
               <span className="tabular font-mono text-sm font-medium text-off-white shrink-0 pl-3">
                 {f.valor.toFixed(f.casas ?? 0)}
-                {f.unidade && <span className="text-grafite-500 ml-1">{f.unidade}</span>}
+                {f.unidade && <span className="text-off-white/40 ml-1">{f.unidade}</span>}
               </span>
             </div>
           );
