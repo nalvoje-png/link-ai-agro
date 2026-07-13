@@ -71,6 +71,13 @@ function App() {
   const [leitura, setLeitura] = useState<LeituraSensor | null>(LEITURA_DEMO);
   const [estado, setEstado] = useState<EstadoSistema>(ESTADO_DEMO);
   const [reles, setReles] = useState<Rele[]>([]);
+  const [agora, setAgora] = useState(new Date());
+
+  // Relogio ao vivo, so para conferencia visual (comparar com o horario da placa no Monitor Serial)
+  useEffect(() => {
+    const tick = setInterval(() => setAgora(new Date()), 1000);
+    return () => clearInterval(tick);
+  }, []);
 
   useEffect(() => {
     if (demo) return;
@@ -148,6 +155,9 @@ function App() {
             LINK-AI AGRO <span className="text-grafite-600 font-normal mx-1">|</span>
             <span className="text-grafite-400 font-medium"> FAZENDA CONILON — CONTROLE DE IRRIGAÇÃO</span>
           </h1>
+          <span className="ml-auto tabular font-mono text-sm text-grafite-400 shrink-0" title="Hora do seu navegador — compare com o Monitor Serial da placa">
+            {agora.toLocaleTimeString('pt-BR')}
+          </span>
         </header>
 
         <PainelBomba estado={estado} setores={setores} onToggleModo={alternarModo} />
@@ -170,7 +180,7 @@ function App() {
         <PerfilSolo leitura={leitura} />
 
         <footer className="text-center text-xs text-grafite-600 pt-4">
-          NVX AI LABS — LINK-AI AGRO · DADOS DE DEMONSTRAÇÃO · v1.1.2
+          NVX AI LABS — LINK-AI AGRO · DADOS DE DEMONSTRAÇÃO · v1.1.3
         </footer>
       </div>
     </div>
