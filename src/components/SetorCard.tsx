@@ -33,7 +33,7 @@ export function SetorCard({ setor, onChange, onToggleManual, falhaComunicacao }:
     ? { cor: 'azul', Icone: Droplet, label: 'Irrigando' + (setor.progressoMinutos != null ? ` · ${setor.progressoMinutos}m` : '') }
     : isErro
     ? { cor: 'critico', Icone: WifiOff, label: 'Erro' }
-    : setor.status === 'aguardando'
+    : setor.ativo
     ? { cor: 'verde', Icone: Clock, label: 'Agendado' }
     : { cor: 'grafite', Icone: Lock, label: 'Desativado' };
 
@@ -96,7 +96,7 @@ export function SetorCard({ setor, onChange, onToggleManual, falhaComunicacao }:
           className="vidro-sutil flex items-center justify-between rounded-lg px-3 py-2"
         >
           <span className={`text-xs font-medium ${setor.ativo ? 'text-verde-400' : 'text-off-white/50'}`}>
-            {setor.ativo ? 'Agendado' : 'Desativado'}
+            ON/OFF
           </span>
           <span
             className={`relative flex h-5 w-9 items-center rounded-full p-0.5 backdrop-blur-sm transition-colors ${
