@@ -1,5 +1,4 @@
 import { useEffect, useState } from 'react';
-import { Sprout } from 'lucide-react';
 import { PainelBomba } from './components/PainelBomba';
 import { SetorCard } from './components/SetorCard';
 import { PerfilSolo } from './components/PerfilSolo';
@@ -148,13 +147,20 @@ function App() {
     <div className="min-h-screen bg-grafite-950 px-4 py-6 md:px-10 md:py-10">
       <div className="mx-auto max-w-5xl flex flex-col gap-6">
         <header className="flex items-center gap-3">
-          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-verde-500/20 to-azul-500/20 border border-grafite-700">
-            <Sprout className="h-6 w-6 text-verde-400" />
+          <img
+            src="/logo-icon.png"
+            alt="LinkAI Agro"
+            className="h-11 w-11 shrink-0 rounded-xl shadow-[0_2px_10px_rgba(34,211,166,0.25)]"
+          />
+          <div className="min-w-0">
+            <h1 className="text-lg md:text-xl font-semibold tracking-tight leading-snug">
+              LINKAI AGRO <span className="text-grafite-600 font-normal mx-1">|</span>
+              <span className="text-grafite-400 font-medium"> FAZENDA CONILON — CONTROLE DE IRRIGAÇÃO</span>
+            </h1>
+            <p className="text-[11px] text-grafite-600 tracking-wide truncate">
+              Tecnologia que <span className="text-verde-500">conecta</span>. Inteligência que <span className="text-azul-400">produz</span>.
+            </p>
           </div>
-          <h1 className="text-lg md:text-xl font-semibold tracking-tight leading-snug">
-            LINK-AI AGRO <span className="text-grafite-600 font-normal mx-1">|</span>
-            <span className="text-grafite-400 font-medium"> FAZENDA CONILON — CONTROLE DE IRRIGAÇÃO</span>
-          </h1>
           <span className="ml-auto tabular font-mono text-sm text-grafite-400 shrink-0" title="Hora do seu navegador — compare com o Monitor Serial da placa">
             {agora.toLocaleTimeString('pt-BR')}
           </span>
@@ -180,7 +186,7 @@ function App() {
         <PerfilSolo leitura={leitura} />
 
         <footer className="text-center text-xs text-grafite-600 pt-4">
-          NVX AI LABS — LINK-AI AGRO · DADOS DE DEMONSTRAÇÃO · v1.1.3
+          NVX AI LABS — LINKAI AGRO · DADOS DE DEMONSTRAÇÃO · v1.2.0
         </footer>
       </div>
     </div>

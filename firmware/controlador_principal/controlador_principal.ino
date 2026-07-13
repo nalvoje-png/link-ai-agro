@@ -23,11 +23,11 @@
 #include <ModbusMaster.h>
 
 // ---------- Configuracao ----------
-const char* WIFI_SSID = "SEU_WIFI_AQUI";
-const char* WIFI_PASSWORD = "SUA_SENHA_AQUI";
+const char* WIFI_SSID = "ULTRAGIGA";
+const char* WIFI_PASSWORD = "*Nv127300";
 
-const char* SUPABASE_URL = "https://xxxxx.supabase.co";
-const char* SUPABASE_ANON_KEY = "eyJ...";
+const char* SUPABASE_URL = "https://gmozoctsclowvgxivxfw.supabase.co";
+const char* SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imdtb3pvY3RzY2xvd3ZneGl2eGZ3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODM2MDYxNjMsImV4cCI6MjA5OTE4MjE2M30.RumJaaScHwSJ7RlwGEbmDMka86VxdY_JvY7TRInpFWw";
 
 const long GMT_OFFSET_SEC = -3 * 3600; // Brasilia (UTC-3, sem horario de verao atualmente)
 const int DAYLIGHT_OFFSET_SEC = 0;
@@ -35,12 +35,22 @@ const char* NTP_SERVER = "pool.ntp.org";
 
 const unsigned long INTERVALO_AGENDADOR_MS = 5000;    // avalia o agendamento a cada 5s
 const unsigned long INTERVALO_SENSOR_MS = 10UL * 60UL * 1000UL; // le o sensor a cada 10 min
+const unsigned long INTERVALO_RESYNC_NTP_MS = 5UL * 60UL * 1000UL; // resincroniza a hora a cada 5 min (evita desvio do relogio interno)
 
 // ---------- I2C / Reles ----------
 #define SDA_PIN 4
 #define SCL_PIN 5
 #define PCF_RELAY_ADDR 0x24
 uint8_t relayState = 0xFF; // ativo em LOW
+
+// ---------- Buzzer ----------
+#define BUZZER_PIN 12
+
+void beep(int duracaoMs) {
+  digitalWrite(BUZZER_PIN, HIGH);
+  delay(duracaoMs);
+  digitalWrite(BUZZER_PIN, LOW);
+}
 
 void writeRelays(uint8_t state) {
   Wire.beginTransmission(PCF_RELAY_ADDR);
@@ -139,45 +149,68 @@ bool buscarSetoresEEstado() {
     totalSetores++;
   }
 
-  // Estado do sistema (modo de operacao)
-  HTTPClient http2;
-  String url2 = urlBase() + "estado_sistema?select=modo_operacao,max_setores_simultaneos&id=eq.1";
-  http2.begin(url2);
-  adicionarHeadersPadrao(http2);
-  int codigo2 = http2.GET();
-  if (codigo2 == 200) {
-    String corpo2 = http2.getString();
-    JsonDocument doc2;
-    if (!deserializeJson(doc2, corpo2)) {
-      JsonArray arr = doc2.as<JsonArray>();
-      if (arr.size() > 0) {
-        modoOperacao = arr[0]["modo_operacao"].as<String>();
-        maxSetoresSimultaneos = arr[0]["max_setores_simultaneos"];
+  // Estado do sistema (modo de operacao) — buscado com menos frequencia,
+  // ja que raramente muda, para reduzir o numero de chamadas HTTPS por ciclo.
+  static int ciclosAteProximoFetchEstado = 0;
+  if (ciclosAteProximoFetchEstado <= 0) {
+    HTTPClient http2;
+    String url2 = urlBase() + "estado_sistema?select=modo_operacao,max_setores_simultaneos&id=eq.1";
+    http2.begin(url2);
+    adicionarHeadersPadrao(http2);
+    int codigo2 = http2.GET();
+    if (codigo2 == 200) {
+      String corpo2 = http2.getString();
+      JsonDocument doc2;
+      if (!deserializeJson(doc2, corpo2)) {
+        JsonArray arr = doc2.as<JsonArray>();
+        if (arr.size() > 0) {
+          modoOperacao = arr[0]["modo_operacao"].as<String>();
+          maxSetoresSimultaneos = arr[0]["max_setores_simultaneos"];
+        }
       }
     }
+    http2.end();
+    ciclosAteProximoFetchEstado = 6; // com ciclo de 5s, refaz a cada ~30s
   }
-  http2.end();
+  ciclosAteProximoFetchEstado--;
 
   return true;
 }
 
-// ---------- Escreve o status de um setor no Supabase ----------
-void gravarStatusSetor(int id, const char* status, int progressoMinutos) {
-  HTTPClient http;
-  String url = urlBase() + "setores?id=eq." + String(id);
-  http.begin(url);
-  adicionarHeadersPadrao(http);
-  http.addHeader("Prefer", "return=minimal");
-
+// ---------- Escreve o status de TODOS os setores numa unica chamada (upsert em lote) ----------
+void gravarStatusTodosSetores(bool deveIrrigar[8], int janelaAtivaInicio[8], int minutoAtual) {
   JsonDocument doc;
-  doc["status"] = status;
-  if (progressoMinutos >= 0) doc["progresso_minutos"] = progressoMinutos;
-  else doc["progresso_minutos"] = nullptr;
+  JsonArray arr = doc.to<JsonArray>();
+
+  for (int i = 0; i < totalSetores; i++) {
+    SetorFW& s = setores[i];
+    JsonObject obj = arr.add<JsonObject>();
+    obj["id"] = s.id;
+    if (deveIrrigar[i]) {
+      int progresso = janelaAtivaInicio[i] >= 0 ? (minutoAtual - janelaAtivaInicio[i]) : 0;
+      obj["status"] = "ativo";
+      obj["progresso_minutos"] = progresso >= 0 ? progresso : 0;
+    } else {
+      obj["status"] = s.ativo ? "aguardando" : "desligado";
+      obj["progresso_minutos"] = nullptr;
+    }
+  }
 
   String corpo;
   serializeJson(doc, corpo);
-  http.PATCH(corpo);
+
+  HTTPClient http;
+  String url = urlBase() + "setores?on_conflict=id";
+  http.begin(url);
+  adicionarHeadersPadrao(http);
+  http.addHeader("Prefer", "resolution=merge-duplicates,return=minimal");
+  int codigo = http.POST(corpo);
   http.end();
+
+  if (codigo < 200 || codigo >= 300) {
+    Serial.print("Erro ao gravar status em lote: ");
+    Serial.println(codigo);
+  }
 }
 
 // ---------- Atualiza estado_sistema (bomba, ultima sincronizacao) ----------
@@ -239,6 +272,13 @@ void avaliarAgendamento() {
   int minutoAtual = agora.tm_hour * 60 + agora.tm_min;
   int diaSemanaAtual = agora.tm_wday; // 0 = domingo
 
+  char bufHora[16];
+  strftime(bufHora, sizeof(bufHora), "%H:%M:%S", &agora);
+  Serial.print("Hora atual (placa): ");
+  Serial.print(bufHora);
+  Serial.print(" | dia da semana (0=dom): ");
+  Serial.println(diaSemanaAtual);
+
   bool manualLigado[8];
   buscarRelesManuais(manualLigado);
 
@@ -289,7 +329,7 @@ void avaliarAgendamento() {
     }
   }
 
-  // 4) Aciona os reles fisicos e grava o status de volta
+  // 4) Aciona os reles fisicos e grava o status de volta (numa unica chamada em lote)
   bool algumAtivo = false;
   uint8_t novoEstadoFisico = 0xFF; // todos desligados por padrao (ativo em LOW)
 
@@ -298,13 +338,9 @@ void avaliarAgendamento() {
     if (deveIrrigar[i]) {
       novoEstadoFisico &= ~(1 << s.releIndex); // liga (LOW)
       algumAtivo = true;
-      int progresso = janelaAtivaInicio[i] >= 0 ? (minutoAtual - janelaAtivaInicio[i]) : 0;
-      gravarStatusSetor(s.id, "ativo", progresso >= 0 ? progresso : 0);
-    } else {
-      String statusFinal = s.ativo ? "aguardando" : "desligado";
-      gravarStatusSetor(s.id, statusFinal.c_str(), -1);
     }
   }
+  gravarStatusTodosSetores(deveIrrigar, janelaAtivaInicio, minutoAtual);
 
   // Rele 0 = bomba: liga se qualquer setor estiver ativo, ou se a bomba foi
   // acionada manualmente pelo botao de teste direto.
@@ -375,6 +411,10 @@ void setup() {
   Serial.begin(115200);
   delay(1000);
 
+  pinMode(BUZZER_PIN, OUTPUT);
+  digitalWrite(BUZZER_PIN, LOW);
+  beep(120); // 1 bip: placa ligou
+
   Wire.begin(SDA_PIN, SCL_PIN);
   writeRelays(relayState);
 
@@ -391,11 +431,23 @@ void setup() {
     Serial.print(".");
   }
   Serial.println("\nHora sincronizada.");
+
+  // 2 bips: sistema totalmente iniciado (WiFi + hora sincronizados), pronto para operar
+  beep(120);
+  delay(150);
+  beep(120);
 }
 
 void loop() {
   static unsigned long ultimoAgendamento = 0;
   static unsigned long ultimaLeituraSensor = 0;
+  static unsigned long ultimoResyncNtp = 0;
+
+  if (millis() - ultimoResyncNtp >= INTERVALO_RESYNC_NTP_MS) {
+    ultimoResyncNtp = millis();
+    configTime(GMT_OFFSET_SEC, DAYLIGHT_OFFSET_SEC, NTP_SERVER);
+    Serial.println("Hora ressincronizada via NTP.");
+  }
 
   if (millis() - ultimoAgendamento >= INTERVALO_AGENDADOR_MS) {
     ultimoAgendamento = millis();
