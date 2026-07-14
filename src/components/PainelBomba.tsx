@@ -1,10 +1,11 @@
-import { Droplets, Wifi } from 'lucide-react';
+import { Droplets, Wifi, Zap } from 'lucide-react';
 import type { EstadoSistema, JanelaHorario, Setor } from '../types';
 
 interface Props {
   estado: EstadoSistema;
   setores: Setor[];
   onToggleModo: () => void;
+  onConfiguracaoRapida: () => void;
 }
 
 interface ProximaIrrigacao {
@@ -12,7 +13,7 @@ interface ProximaIrrigacao {
   proximaJanela: JanelaHorario;
 }
 
-export function PainelBomba({ estado, setores, onToggleModo }: Props) {
+export function PainelBomba({ estado, setores, onToggleModo, onConfiguracaoRapida }: Props) {
   const setoresAtivos = setores.filter((s) => s.status === 'ativo');
   const proximo = setores
     .filter((s) => s.status === 'aguardando' && s.ativo)
@@ -67,29 +68,39 @@ export function PainelBomba({ estado, setores, onToggleModo }: Props) {
         </div>
 
         {/* Conectividade + modo */}
-        <div className="flex items-center gap-3 shrink-0">
-          <div className="vidro-sutil flex items-center gap-2 rounded-full px-3 py-1.5">
-            <span className="relative flex h-2 w-2">
-              {estado.online && (
-                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-verde-400 opacity-70" />
-              )}
-              <span
-                className={`relative inline-flex h-2 w-2 rounded-full ${
-                  estado.online ? 'bg-verde-400' : 'bg-grafite-500'
-                }`}
-              />
-            </span>
-            <Wifi className={`h-3.5 w-3.5 ${estado.online ? 'text-verde-400' : 'text-grafite-500'}`} />
-            <span className="text-xs font-medium text-off-white/70">
-              {estado.online ? 'Online' : 'Offline'}
-            </span>
+        <div className="flex flex-col items-stretch gap-2 shrink-0">
+          <div className="flex items-center gap-3">
+            <div className="vidro-sutil flex items-center gap-2 rounded-full px-3 py-1.5">
+              <span className="relative flex h-2 w-2">
+                {estado.online && (
+                  <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-verde-400 opacity-70" />
+                )}
+                <span
+                  className={`relative inline-flex h-2 w-2 rounded-full ${
+                    estado.online ? 'bg-verde-400' : 'bg-grafite-500'
+                  }`}
+                />
+              </span>
+              <Wifi className={`h-3.5 w-3.5 ${estado.online ? 'text-verde-400' : 'text-grafite-500'}`} />
+              <span className="text-xs font-medium text-off-white/70">
+                {estado.online ? 'Online' : 'Offline'}
+              </span>
+            </div>
+
+            <button
+              onClick={onToggleModo}
+              className="vidro-sutil rounded-full px-4 py-1.5 text-xs font-medium text-off-white/70 hover:border-azul-400/60 transition-colors"
+            >
+              Modo: <span className="font-semibold text-off-white">{estado.modoOperacao === 'sequencial' ? 'Sequencial' : 'Paralelo'}</span>
+            </button>
           </div>
 
           <button
-            onClick={onToggleModo}
-            className="vidro-sutil rounded-full px-4 py-1.5 text-xs font-medium text-off-white/70 hover:border-azul-400/60 transition-colors"
+            onClick={onConfiguracaoRapida}
+            className="flex items-center justify-center gap-1.5 rounded-full px-4 py-1.5 text-xs font-semibold bg-verde-500/20 border border-verde-400/40 text-verde-300 hover:bg-verde-500/30 transition-colors"
           >
-            Modo: <span className="font-semibold text-off-white">{estado.modoOperacao === 'sequencial' ? 'Sequencial' : 'Paralelo'}</span>
+            <Zap className="h-3.5 w-3.5" />
+            Configuração rápida
           </button>
         </div>
       </div>

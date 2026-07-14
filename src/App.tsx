@@ -3,6 +3,7 @@ import { PainelBomba } from './components/PainelBomba';
 import { SetorCard } from './components/SetorCard';
 import { PerfilSolo } from './components/PerfilSolo';
 import { HistoricoModal } from './components/HistoricoModal';
+import { ConfiguracaoRapidaModal } from './components/ConfiguracaoRapidaModal';
 import { supabase } from './lib/supabaseClient';
 import { listarSetores, salvarConfigSetor, definirStatusSetor } from './lib/setores';
 import { obterEstado, definirModoOperacao } from './lib/estadoSistema';
@@ -74,6 +75,7 @@ function App() {
   const [reles, setReles] = useState<Rele[]>([]);
   const [agora, setAgora] = useState(new Date());
   const [setorHistorico, setSetorHistorico] = useState<number | null>(null);
+  const [configRapidaAberta, setConfigRapidaAberta] = useState(false);
 
   // Relogio ao vivo, so para conferencia visual (comparar com o horario da placa no Monitor Serial)
   useEffect(() => {
@@ -146,6 +148,15 @@ function App() {
     if (!demo) await definirModoOperacao(novoModo);
   };
 
+  const aplicarConfigRapida = (novaConfig: Setor[]) => {
+    setSetores(novaConfig);
+    if (!demo) {
+      for (const s of novaConfig) {
+        salvarConfigSetor(s);
+      }
+    }
+  };
+
   return (
     <div className="fundo-fazenda min-h-screen px-4 py-6 md:px-10 md:py-10">
       <div className="mx-auto max-w-5xl flex flex-col gap-6 relative">
@@ -157,11 +168,11 @@ function App() {
           />
           <div className="min-w-0">
             <h1 className="text-lg md:text-xl font-semibold tracking-tight leading-snug">
-              LINKAI AGRO <span className="text-off-white/40 font-normal mx-1">|</span>
-              <span className="text-off-white/80 font-medium"> FAZENDA CONILON — CONTROLE DE IRRIGAÇÃO</span>
+              LINK-AI AGRO <span className="text-off-white/40 font-normal mx-1">|</span>
+              <span className="text-off-white/80 font-medium"> CONTROLE INTELIGENTE DE IRRIGAÇÃO</span>
             </h1>
             <p className="text-[11px] text-off-white/50 tracking-wide truncate">
-              Tecnologia que <span className="text-verde-400">conecta</span>. Inteligência que <span className="text-azul-300">produz</span>.
+              Tecnologia que conecta. Inteligência que produz.
             </p>
           </div>
           <span
@@ -172,7 +183,12 @@ function App() {
           </span>
         </header>
 
-        <PainelBomba estado={estado} setores={setores} onToggleModo={alternarModo} />
+        <PainelBomba
+          estado={estado}
+          setores={setores}
+          onToggleModo={alternarModo}
+          onConfiguracaoRapida={() => setConfigRapidaAberta(true)}
+        />
 
         <section>
           <h2 className="text-xl font-semibold tracking-tight mb-3 drop-shadow-[0_1px_4px_rgba(0,0,0,0.5)]">Setores</h2>
@@ -193,7 +209,7 @@ function App() {
         <PerfilSolo leitura={leitura} />
 
         <footer className="text-center text-xs text-off-white/40 pt-4">
-          NVX AI LABS — LINKAI AGRO · DADOS DE DEMONSTRAÇÃO · v1.4.0
+          NVX AI LABS — LINKAI AGRO · DADOS DE DEMONSTRAÇÃO · v1.4.2
         </footer>
       </div>
 
@@ -201,6 +217,14 @@ function App() {
         const s = setores.find((x) => x.id === setorHistorico);
         return s ? <HistoricoModal setor={s} onClose={() => setSetorHistorico(null)} /> : null;
       })()}
+
+      {configRapidaAberta && (
+        <ConfiguracaoRapidaModal
+          setores={setores}
+          onAplicar={aplicarConfigRapida}
+          onClose={() => setConfigRapidaAberta(false)}
+        />
+      )}
     </div>
   );
 }

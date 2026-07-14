@@ -222,8 +222,26 @@ void registrarEvento(int setorId, const char* tipo, const char* origem) {
 
   String corpo;
   serializeJson(doc, corpo);
-  http.POST(corpo);
+  int codigo = http.POST(corpo);
   http.end();
+
+  if (codigo < 200 || codigo >= 300) {
+    Serial.print("ERRO ao registrar evento (setor ");
+    Serial.print(setorId);
+    Serial.print(", ");
+    Serial.print(tipo);
+    Serial.print("): HTTP ");
+    Serial.println(codigo);
+  } else {
+    Serial.print("Evento registrado: setor ");
+    Serial.print(setorId);
+    Serial.print(" ");
+    Serial.print(tipo);
+    Serial.print(" (");
+    Serial.print(origem);
+    Serial.println(")");
+  }
+  delay(120); // pequena pausa antes da proxima chamada HTTPS, evita falha por sobrecarga
 }
 
 void gravarStatusTodosSetores(bool deveIrrigar[8], int janelaAtivaInicio[8], int minutoAtual, bool manualLigado[8]) {
