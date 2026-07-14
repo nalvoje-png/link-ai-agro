@@ -178,38 +178,89 @@ bool buscarSetoresEEstado() {
 }
 
 // ---------- Escreve o status de TODOS os setores numa unica chamada (upsert em lote) ----------
-void gravarStatusTodosSetores(bool deveIrrigar[8], int janelaAtivaInicio[8], int minutoAtual) {
-  JsonDocument doc;
-  JsonArray arr = doc.to<JsonArray>();
+// Guarda o ultimo status escrito de cada setor, para so gravar quando mudar
+String ultimoStatusEscrito[8] = {"", "", "", "", "", "", "", ""};
+int ultimoProgressoEscrito[8] = {-99, -99, -99, -99, -99, -99, -99, -99};
 
-  for (int i = 0; i < totalSetores; i++) {
-    SetorFW& s = setores[i];
-    JsonObject obj = arr.add<JsonObject>();
-    obj["id"] = s.id;
-    if (deveIrrigar[i]) {
-      int progresso = janelaAtivaInicio[i] >= 0 ? (minutoAtual - janelaAtivaInicio[i]) : 0;
-      obj["status"] = "ativo";
-      obj["progresso_minutos"] = progresso >= 0 ? progresso : 0;
-    } else {
-      obj["status"] = s.ativo ? "aguardando" : "desligado";
-      obj["progresso_minutos"] = nullptr;
-    }
-  }
+void gravarStatusSetor(int id, const char* status, int progresso) {
+  HTTPClient http;
+  String url = urlBase() + "setores?id=eq." + String(id);
+  http.begin(url);
+  adicionarHeadersPadrao(http);
+  http.addHeader("Prefer", "return=minimal");
+
+  JsonDocument doc;
+  doc["status"] = status;
+  if (progresso >= 0) doc["progresso_minutos"] = progresso;
+  else doc["progresso_minutos"] = nullptr;
 
   String corpo;
   serializeJson(doc, corpo);
-
-  HTTPClient http;
-  String url = urlBase() + "setores?on_conflict=id";
-  http.begin(url);
-  adicionarHeadersPadrao(http);
-  http.addHeader("Prefer", "resolution=merge-duplicates,return=minimal");
-  int codigo = http.POST(corpo);
+  int codigo = http.PATCH(corpo);
   http.end();
 
   if (codigo < 200 || codigo >= 300) {
-    Serial.print("Erro ao gravar status em lote: ");
+    Serial.print("Erro ao gravar status do setor ");
+    Serial.print(id);
+    Serial.print(": HTTP ");
     Serial.println(codigo);
+  }
+}
+
+// Registra um evento de liga/desliga na tabela eventos_setor
+void registrarEvento(int setorId, const char* tipo, const char* origem) {
+  HTTPClient http;
+  String url = urlBase() + "eventos_setor";
+  http.begin(url);
+  adicionarHeadersPadrao(http);
+  http.addHeader("Prefer", "return=minimal");
+
+  JsonDocument doc;
+  doc["setor_id"] = setorId;
+  doc["tipo"] = tipo;
+  doc["origem"] = origem;
+
+  String corpo;
+  serializeJson(doc, corpo);
+  http.POST(corpo);
+  http.end();
+}
+
+void gravarStatusTodosSetores(bool deveIrrigar[8], int janelaAtivaInicio[8], int minutoAtual, bool manualLigado[8]) {
+  for (int i = 0; i < totalSetores; i++) {
+    SetorFW& s = setores[i];
+    String novoStatus;
+    int novoProgresso;
+
+    if (deveIrrigar[i]) {
+      novoStatus = "ativo";
+      int progresso = janelaAtivaInicio[i] >= 0 ? (minutoAtual - janelaAtivaInicio[i]) : 0;
+      novoProgresso = progresso >= 0 ? progresso : 0;
+    } else {
+      novoStatus = s.ativo ? "aguardando" : "desligado";
+      novoProgresso = -1;
+    }
+
+    // So grava se algo mudou desde a ultima vez (reduz chamadas HTTP)
+    int idx = s.id;
+    if (idx < 0 || idx >= 8) continue;
+    if (ultimoStatusEscrito[idx] == novoStatus && ultimoProgressoEscrito[idx] == novoProgresso) {
+      continue;
+    }
+
+    // Detecta transicao ligado <-> desligado para registrar evento no historico
+    bool eraAtivo = (ultimoStatusEscrito[idx] == "ativo");
+    bool agoraAtivo = (novoStatus == "ativo");
+    if (agoraAtivo && !eraAtivo) {
+      const char* origem = (s.releIndex >= 0 && s.releIndex < 8 && manualLigado[s.releIndex]) ? "manual" : "automatico";
+      registrarEvento(s.id, "ligou", origem);
+    } else if (!agoraAtivo && eraAtivo) {
+      registrarEvento(s.id, "desligou", "automatico");
+    }
+
+    gravarStatusSetor(s.id, novoStatus.c_str(), novoProgresso);
+    ultimoStatusEscrito[idx] = novoStatus;
+    ultimoProgressoEscrito[idx] = novoProgresso;
   }
 }
 
@@ -227,8 +278,18 @@ void gravarEstadoSistema(bool bombaLigada) {
 
   String corpo;
   serializeJson(doc, corpo);
-  http.PATCH(corpo);
+  int codigo = http.PATCH(corpo);
   http.end();
+
+  if (codigo < 200 || codigo >= 300) {
+    Serial.print("ERRO ao gravar estado_sistema (bomba_ligada=");
+    Serial.print(bombaLigada ? "true" : "false");
+    Serial.print("): codigo HTTP ");
+    Serial.println(codigo);
+  } else {
+    Serial.print("estado_sistema gravado OK. bomba_ligada=");
+    Serial.println(bombaLigada ? "true" : "false");
+  }
 }
 
 // ---------- Busca comandos manuais (tabela reles, usada pelo botao Ligar/Desligar agora) ----------
@@ -340,7 +401,7 @@ void avaliarAgendamento() {
       algumAtivo = true;
     }
   }
-  gravarStatusTodosSetores(deveIrrigar, janelaAtivaInicio, minutoAtual);
+  gravarStatusTodosSetores(deveIrrigar, janelaAtivaInicio, minutoAtual, manualLigado);
 
   // Rele 0 = bomba: liga se qualquer setor estiver ativo, ou se a bomba foi
   // acionada manualmente pelo botao de teste direto.

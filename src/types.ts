@@ -17,6 +17,15 @@ export interface Setor {
   ativo: boolean;              // programação ligada/desligada pelo usuário
   status: StatusSetor;
   progressoMinutos?: number;   // quando status === 'ativo', minutos decorridos na janela atual
+  temSensor: boolean;          // se há sensor físico instalado neste setor
+}
+
+export interface EventoSetor {
+  id: number;
+  setorId: number;
+  criadoEm: string;
+  tipo: 'ligou' | 'desligou';
+  origem: 'manual' | 'automatico';
 }
 
 export interface LeituraSensor {

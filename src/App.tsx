@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { PainelBomba } from './components/PainelBomba';
 import { SetorCard } from './components/SetorCard';
 import { PerfilSolo } from './components/PerfilSolo';
+import { HistoricoModal } from './components/HistoricoModal';
 import { supabase } from './lib/supabaseClient';
 import { listarSetores, salvarConfigSetor, definirStatusSetor } from './lib/setores';
 import { obterEstado, definirModoOperacao } from './lib/estadoSistema';
@@ -10,11 +11,11 @@ import { alternarRele, listarReles, type Rele } from './lib/reles';
 import type { EstadoSistema, LeituraSensor, Setor, StatusSetor } from './types';
 
 const SETORES_DEMO: Setor[] = [
-  { id: 1, nome: 'Setor 1', releIndex: 1, janelas: [{ id: '1-0', inicio: '06:00', fim: '06:20' }], diasSemana: [0, 1, 2, 3, 4, 5, 6], ativo: true, status: 'aguardando' },
-  { id: 2, nome: 'Setor 2', releIndex: 2, janelas: [{ id: '2-0', inicio: '06:25', fim: '06:45' }], diasSemana: [0, 1, 2, 3, 4, 5, 6], ativo: true, status: 'aguardando' },
-  { id: 3, nome: 'Setor 3', releIndex: 3, janelas: [{ id: '3-0', inicio: '06:50', fim: '07:15' }], diasSemana: [0, 1, 2, 3, 4, 5, 6], ativo: true, status: 'ativo', progressoMinutos: 8 },
-  { id: 4, nome: 'Setor 4', releIndex: 4, janelas: [{ id: '4-0', inicio: '07:20', fim: '07:40' }], diasSemana: [0, 1, 2, 3, 4, 5, 6], ativo: true, status: 'aguardando' },
-  { id: 5, nome: 'Setor 5', releIndex: 5, janelas: [{ id: '5-0', inicio: '07:45', fim: '08:05' }], diasSemana: [0, 1, 2, 3, 4, 5, 6], ativo: false, status: 'desligado' },
+  { id: 1, nome: 'Setor 1', releIndex: 1, janelas: [{ id: '1-0', inicio: '06:00', fim: '06:20' }], diasSemana: [0, 1, 2, 3, 4, 5, 6], ativo: true, status: 'aguardando', temSensor: false },
+  { id: 2, nome: 'Setor 2', releIndex: 2, janelas: [{ id: '2-0', inicio: '06:25', fim: '06:45' }], diasSemana: [0, 1, 2, 3, 4, 5, 6], ativo: true, status: 'aguardando', temSensor: false },
+  { id: 3, nome: 'Setor 3', releIndex: 3, janelas: [{ id: '3-0', inicio: '06:50', fim: '07:15' }], diasSemana: [0, 1, 2, 3, 4, 5, 6], ativo: true, status: 'ativo', progressoMinutos: 8, temSensor: false },
+  { id: 4, nome: 'Setor 4', releIndex: 4, janelas: [{ id: '4-0', inicio: '07:20', fim: '07:40' }], diasSemana: [0, 1, 2, 3, 4, 5, 6], ativo: true, status: 'aguardando', temSensor: false },
+  { id: 5, nome: 'Setor 5', releIndex: 5, janelas: [{ id: '5-0', inicio: '07:45', fim: '08:05' }], diasSemana: [0, 1, 2, 3, 4, 5, 6], ativo: false, status: 'desligado', temSensor: false },
   {
     id: 6,
     nome: 'Setor 6',
@@ -26,6 +27,7 @@ const SETORES_DEMO: Setor[] = [
     diasSemana: [0, 1, 2, 3, 4, 5, 6],
     ativo: true,
     status: 'aguardando',
+    temSensor: false,
   },
 ];
 
@@ -71,6 +73,7 @@ function App() {
   const [estado, setEstado] = useState<EstadoSistema>(ESTADO_DEMO);
   const [reles, setReles] = useState<Rele[]>([]);
   const [agora, setAgora] = useState(new Date());
+  const [setorHistorico, setSetorHistorico] = useState<number | null>(null);
 
   // Relogio ao vivo, so para conferencia visual (comparar com o horario da placa no Monitor Serial)
   useEffect(() => {
@@ -180,6 +183,7 @@ function App() {
                 setor={setor}
                 onChange={atualizarSetor}
                 onToggleManual={alternarManual}
+                onAbrirHistorico={setSetorHistorico}
                 falhaComunicacao={calcularFalhaComunicacao(setor, relesPorIndex, estado)}
               />
             ))}
@@ -189,9 +193,14 @@ function App() {
         <PerfilSolo leitura={leitura} />
 
         <footer className="text-center text-xs text-off-white/40 pt-4">
-          NVX AI LABS — LINKAI AGRO · DADOS DE DEMONSTRAÇÃO · v1.3.3
+          NVX AI LABS — LINKAI AGRO · DADOS DE DEMONSTRAÇÃO · v1.4.0
         </footer>
       </div>
+
+      {setorHistorico !== null && (() => {
+        const s = setores.find((x) => x.id === setorHistorico);
+        return s ? <HistoricoModal setor={s} onClose={() => setSetorHistorico(null)} /> : null;
+      })()}
     </div>
   );
 }

@@ -1,4 +1,4 @@
-import { Power, Plus, X, Droplet, Clock, Lock, WifiOff } from 'lucide-react';
+import { Power, Plus, X, Droplet, Clock, Lock, WifiOff, Info } from 'lucide-react';
 import type { JanelaHorario, Setor } from '../types';
 
 const DIAS = ['D', 'S', 'T', 'Q', 'Q', 'S', 'S'];
@@ -20,10 +20,11 @@ interface Props {
   setor: Setor;
   onChange: (setor: Setor) => void;
   onToggleManual: (id: number) => void;
+  onAbrirHistorico: (id: number) => void;
   falhaComunicacao?: boolean;
 }
 
-export function SetorCard({ setor, onChange, onToggleManual, falhaComunicacao }: Props) {
+export function SetorCard({ setor, onChange, onToggleManual, onAbrirHistorico, falhaComunicacao }: Props) {
   const isAtivo = setor.status === 'ativo';
   const isErro = setor.status === 'erro';
 
@@ -161,7 +162,8 @@ export function SetorCard({ setor, onChange, onToggleManual, falhaComunicacao }:
           </button>
         </div>
 
-        {/* Dias da semana */}
+        {/* Dias da semana + botao de historico */}
+        <div className="flex items-center justify-between gap-2">
         <div className="flex gap-1.5">
           {DIAS.map((label, i) => {
             const programado = setor.diasSemana.includes(i);
@@ -191,6 +193,16 @@ export function SetorCard({ setor, onChange, onToggleManual, falhaComunicacao }:
               </button>
             );
           })}
+        </div>
+
+          <button
+            onClick={() => onAbrirHistorico(setor.id)}
+            className="shrink-0 text-azul-400 hover:text-azul-300 transition-colors"
+            aria-label="Histórico e sensores do setor"
+            title="Histórico e sensores"
+          >
+            <Info className="h-6 w-6" />
+          </button>
         </div>
 
         <button

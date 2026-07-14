@@ -17,6 +17,7 @@ interface SetorRow {
   ativo: boolean;
   status: StatusSetor;
   progresso_minutos: number | null;
+  tem_sensor: boolean;
 }
 
 function fromRow(row: SetorRow): Setor {
@@ -33,6 +34,7 @@ function fromRow(row: SetorRow): Setor {
     ativo: row.ativo,
     status: row.status,
     progressoMinutos: row.progresso_minutos ?? undefined,
+    temSensor: row.tem_sensor ?? false,
   };
 }
 
